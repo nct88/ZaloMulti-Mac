@@ -68,25 +68,36 @@ final class ZaloCloneEngine: ObservableObject {
         
         isProcessing = true
         progressMessage = "Đang chuẩn bị..."
+        try? await Task.sleep(for: .milliseconds(400))
         
         do {
             progressMessage = "Tạo thư mục dữ liệu..."
             try Self.createDirectories(dataPath: dataPath)
+            try? await Task.sleep(for: .milliseconds(300))
             
             progressMessage = "Sao chép Zalo app (APFS clone)..."
             try await Self.copyBundle(from: ZaloPaths.zaloSourcePath, to: clonePath)
+            try? await Task.sleep(for: .milliseconds(300))
             
             progressMessage = "Đổi Bundle Identifier..."
             try Self.modifyBundleID(appPath: clonePath, newBundleID: bundleID)
+            try? await Task.sleep(for: .milliseconds(300))
+            
+            progressMessage = "Đang vá Socket (app.asar)..."
+            try Self.patchAsarSockets(appPath: clonePath, instanceIndex: index)
+            try? await Task.sleep(for: .milliseconds(300))
             
             progressMessage = "Tạo launcher wrapper..."
             try Self.createWrapperScript(appPath: clonePath, dataPath: dataPath)
+            try? await Task.sleep(for: .milliseconds(300))
             
             progressMessage = "Xoá quarantine..."
             try Self.removeQuarantine(appPath: clonePath)
+            try? await Task.sleep(for: .milliseconds(300))
             
             progressMessage = "Re-sign ứng dụng..."
             try await Self.resignApp(appPath: clonePath)
+            try? await Task.sleep(for: .milliseconds(300))
             
             isProcessing = false
             progressMessage = "Hoàn thành!"
@@ -203,6 +214,48 @@ final class ZaloCloneEngine: ObservableObject {
         try process.run()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw CloneError.plistWriteFailed }
+    }
+    
+    // MARK: - Patch ASAR
+    
+    private nonisolated static func patchAsarSockets(appPath: String, instanceIndex: Int) throws {
+        let asarPath = "\(appPath)/Contents/Resources/app.asar"
+        
+        guard FileManager.default.fileExists(atPath: asarPath) else {
+            return
+        }
+        
+        var data = try Data(contentsOf: URL(fileURLWithPath: asarPath))
+        
+        let sendOld = ZaloPaths.originalSendSocket
+        let recvOld = ZaloPaths.originalRecvSocket
+        
+        let indexStr = String(format: "%04d", 2000 + instanceIndex)
+        let sendNew = "/tmp/socketzalosend\(indexStr)"
+        let recvNew = "/tmp/socketzalorecv\(indexStr)"
+        
+        assert(sendOld.count == sendNew.count, "Socket string length mismatch!")
+        assert(recvOld.count == recvNew.count, "Socket string length mismatch!")
+        
+        data = binaryReplace(in: data, find: sendOld, replace: sendNew)
+        data = binaryReplace(in: data, find: recvOld, replace: recvNew)
+        
+        try data.write(to: URL(fileURLWithPath: asarPath))
+    }
+    
+    private nonisolated static func binaryReplace(in data: Data, find: String, replace: String) -> Data {
+        guard let findData = find.data(using: .utf8),
+              let replaceData = replace.data(using: .utf8) else { return data }
+        
+        var result = data
+        var searchRange = result.startIndex..<result.endIndex
+        
+        while let range = result.range(of: findData, in: searchRange) {
+            result.replaceSubrange(range, with: replaceData)
+            searchRange = range.upperBound..<result.endIndex
+        }
+        
+        return result
     }
     
     private nonisolated static func removeQuarantine(appPath: String) throws {

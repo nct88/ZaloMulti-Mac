@@ -27,3 +27,4 @@ worker-api.js
 # Gemini AI
 .gemini/
 *.xcuserstate
+release/*.dmg

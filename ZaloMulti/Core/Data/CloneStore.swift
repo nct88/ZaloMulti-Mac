@@ -90,7 +90,7 @@ class CloneStore: ObservableObject {
     func deleteClone(_ clone: CloneAccount) {
         DiagnosticLogger.info("STORE", "deleteClone: '\(clone.name)'")
         
-        if processManager.isCloneRunning(clone) {
+        if ProcessManager.checkCloneRunning(cloneIndex: clone.cloneIndex, knownPID: clone.processID) {
             processManager.stopClone(clone)
         }
         
@@ -248,7 +248,7 @@ class CloneStore: ObservableObject {
         var changed = 0
         
         for i in clones.indices {
-            let pidAlive = clones[i].processID != nil && processManager.isRunning(pid: clones[i].processID!)
+            let pidAlive = clones[i].processID != nil && ProcessManager.isRunning(pid: clones[i].processID!)
             let pgrepAlive = ProcessManager.checkCloneRunning(cloneIndex: clones[i].cloneIndex, knownPID: nil)
             
             if pidAlive || pgrepAlive {

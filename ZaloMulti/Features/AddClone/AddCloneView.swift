@@ -108,30 +108,35 @@ struct AddCloneView: View {
     
     private var progressStep: String {
         let msg = store.engine.progressMessage
-        if msg.contains("chuẩn bị") { return "Bước 1/6 — Chuẩn bị" }
-        if msg.contains("thư mục") { return "Bước 1/6 — Tạo thư mục" }
-        if msg.contains("Sao chép") { return "Bước 2/6 — Sao chép ứng dụng" }
-        if msg.contains("Bundle") { return "Bước 3/6 — Đổi Bundle ID" }
-        if msg.contains("wrapper") || msg.contains("launcher") { return "Bước 4/6 — Tạo launcher" }
-        if msg.contains("quarantine") { return "Bước 5/6 — Xoá quarantine" }
-        if msg.contains("sign") { return "Bước 6/6 — Ký mã ứng dụng" }
-        if msg.contains("Hoàn thành") { return "Hoàn thành!" }
-        return ""
+        if msg.contains("chuẩn bị") { return "Bước 1/7 — Đang chuẩn bị..." }
+        if msg.contains("thư mục") { return "Bước 1/7 — Tạo thư mục dữ liệu" }
+        if msg.contains("Sao chép") { return "Bước 2/7 — Sao chép ứng dụng Zalo" }
+        if msg.contains("Bundle") { return "Bước 3/7 — Đổi Bundle Identifier" }
+        if msg.contains("Socket") || msg.contains("asar") { return "Bước 4/7 — Vá Socket cách ly" }
+        if msg.contains("wrapper") || msg.contains("launcher") { return "Bước 5/7 — Tạo launcher wrapper" }
+        if msg.contains("quarantine") { return "Bước 6/7 — Xoá quarantine" }
+        if msg.contains("sign") || msg.contains("Re-sign") { return "Bước 7/7 — Ký mã ứng dụng" }
+        if msg.contains("Hoàn thành") { return "✅ Hoàn thành!" }
+        return "Đang xử lý..."
     }
     
     private var progressValue: Double {
         let msg = store.engine.progressMessage
-        if msg.contains("thư mục") || msg.contains("chuẩn bị") { return 1.0/6.0 }
-        if msg.contains("Sao chép") { return 2.0/6.0 }
-        if msg.contains("Bundle") { return 3.0/6.0 }
-        if msg.contains("wrapper") || msg.contains("launcher") { return 4.0/6.0 }
-        if msg.contains("quarantine") { return 5.0/6.0 }
-        if msg.contains("sign") { return 5.5/6.0 }
+        if msg.contains("chuẩn bị") { return 0.05 }
+        if msg.contains("thư mục") { return 1.0/7.0 }
+        if msg.contains("Sao chép") { return 2.0/7.0 }
+        if msg.contains("Bundle") { return 3.0/7.0 }
+        if msg.contains("Socket") || msg.contains("asar") { return 4.0/7.0 }
+        if msg.contains("wrapper") || msg.contains("launcher") { return 5.0/7.0 }
+        if msg.contains("quarantine") { return 6.0/7.0 }
+        if msg.contains("sign") || msg.contains("Re-sign") { return 6.5/7.0 }
         if msg.contains("Hoàn thành") { return 1.0 }
-        return 0.1
+        return 0.02
     }
     
     private func createClone() {
+        // Reset message TRƯỚC khi show progress UI → tránh hiện "Hoàn thành!" cũ
+        store.engine.progressMessage = "Đang chuẩn bị..."
         withAnimation { isCreating = true }
         
         Task {

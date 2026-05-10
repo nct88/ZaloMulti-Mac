@@ -135,7 +135,7 @@ struct AboutView: View {
                 .font(.title3)
                 .fontWeight(.bold)
             
-            Text("Phiên bản 1.0.0 (macOS)")
+            Text("Phiên bản 1.1.0 (macOS)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             
