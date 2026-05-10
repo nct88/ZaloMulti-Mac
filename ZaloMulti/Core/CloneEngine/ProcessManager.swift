@@ -74,6 +74,14 @@ final class ProcessManager: ObservableObject {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: actualBinary)
         process.currentDirectoryURL = URL(fileURLWithPath: clone.dataPath)
+        
+        // QUAN TRỌNG: Phải set HOME = clone.dataPath để Electron lưu session vào đúng nơi
+        // Nếu không, tất cả clones sẽ dùng chung ~/Library/Application Support/Zalo (real home)
+        // Dẫn đến việc đè session của nhau và bị văng đăng nhập.
+        var env = ProcessInfo.processInfo.environment
+        env["HOME"] = clone.dataPath
+        process.environment = env
+        
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         
