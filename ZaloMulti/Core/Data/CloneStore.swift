@@ -3,7 +3,9 @@
 //
 // State management trung tâm cho toàn bộ ứng dụng.
 // Quản lý danh sách clones, CRUD operations, launch/stop.
-// Pattern sao chép từ zDesk-Pro (đã kiểm chứng hoạt động)
+//
+// ⚡ Performance: sync dùng kill(pid,0) thay vì pgrep — không spawn process.
+//    pgrep chỉ dùng 1 lần duy nhất khi startup để recover orphan processes.
 
 import Foundation
 import SwiftUI
@@ -30,15 +32,13 @@ class CloneStore: ObservableObject {
         loadClones()
         syncProcessStatus()
         DiagnosticLogger.info("STORE", "Đã load \(clones.count) clones từ storage")
-        for clone in clones {
-            DiagnosticLogger.debug("STORE", "  → '\(clone.name)' status=\(clone.status.rawValue) index=\(clone.cloneIndex)")
-        }
         
-        // Timer đồng bộ trạng thái mỗi 3 giây — giữ strong reference
+        // Timer đồng bộ trạng thái mỗi 3 giây — dùng kill(pid,0) thay vì pgrep
         startSyncTimer()
     }
     
-    /// Bắt đầu timer sync — thêm vào RunLoop.main với .common mode
+    // Timer cleanup: weak self in closure handles lifecycle
+    /// Timer sync — dùng kill(pid,0) O(1) thay vì pgrep O(n) process spawning
     private func startSyncTimer() {
         syncTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
@@ -46,11 +46,9 @@ class CloneStore: ObservableObject {
                 self.syncRunningStatus()
             }
         }
-        // Đảm bảo timer fire trong common run loop modes (khi UI đang scroll/interact)
         if let timer = syncTimer {
             RunLoop.main.add(timer, forMode: .common)
         }
-        DiagnosticLogger.info("STORE", "Sync timer đã khởi động")
     }
     
     // MARK: - CRUD
@@ -58,7 +56,7 @@ class CloneStore: ObservableObject {
     /// Thêm clone mới
     func addClone(name: String, phone: String) {
         let nextIndex = (clones.map(\.cloneIndex).max() ?? 0) + 1
-        DiagnosticLogger.info("STORE", "addClone: name='\(name)', phone='\(phone)', nextIndex=\(nextIndex)")
+        DiagnosticLogger.info("STORE", "addClone: name='\(name)', nextIndex=\(nextIndex)")
         
         Task {
             do {
@@ -69,7 +67,7 @@ class CloneStore: ObservableObject {
                 )
                 clones.append(clone)
                 saveClones()
-                DiagnosticLogger.success("STORE", "Clone '\(name)' đã thêm vào danh sách (total=\(clones.count))")
+                DiagnosticLogger.success("STORE", "Clone '\(name)' đã thêm (total=\(clones.count))")
             } catch {
                 self.errorMessage = error.localizedDescription
                 self.showError = true
@@ -83,14 +81,14 @@ class CloneStore: ObservableObject {
         guard let index = clones.firstIndex(where: { $0.id == updated.id }) else { return }
         clones[index] = updated
         saveClones()
-        DiagnosticLogger.info("STORE", "updateClone: '\(updated.name)' đã cập nhật")
     }
     
     /// Xoá clone
     func deleteClone(_ clone: CloneAccount) {
         DiagnosticLogger.info("STORE", "deleteClone: '\(clone.name)'")
         
-        if ProcessManager.checkCloneRunning(cloneIndex: clone.cloneIndex, knownPID: clone.processID) {
+        // Dùng PID check thay vì pgrep
+        if let pid = clone.processID, ProcessManager.isRunning(pid: pid) {
             processManager.stopClone(clone)
         }
         
@@ -110,15 +108,12 @@ class CloneStore: ObservableObject {
     func launchClone(_ clone: CloneAccount) {
         guard let index = clones.firstIndex(where: { $0.id == clone.id }) else { return }
         
-        DiagnosticLogger.info("STORE", "launchClone: '\(clone.name)' (index=\(clone.cloneIndex))")
-        
         do {
             let pid = try processManager.launchClone(clone)
             clones[index].status = .running
             clones[index].processID = pid
             clones[index].lastOpenedAt = Date()
             saveClones()
-            // Force UI update
             objectWillChange.send()
             DiagnosticLogger.success("STORE", "Clone '\(clone.name)' đang chạy — PID=\(pid)")
         } catch {
@@ -137,7 +132,6 @@ class CloneStore: ObservableObject {
     func stopClone(_ clone: CloneAccount) {
         guard let index = clones.firstIndex(where: { $0.id == clone.id }) else { return }
         
-        DiagnosticLogger.info("STORE", "stopClone: '\(clone.name)'")
         processManager.stopClone(clone)
         clones[index].status = .stopped
         clones[index].processID = nil
@@ -178,47 +172,37 @@ class CloneStore: ObservableObject {
         clones.count
     }
     
-    // MARK: - Process Sync (copy từ zDesk-Pro — đã kiểm chứng)
+    // MARK: - Process Sync (⚡ Optimized — kill(pid,0) thay vì pgrep)
     
-    /// Đồng bộ trạng thái clone với ProcessManager mỗi 3 giây
-    /// Chạy pgrep trên BACKGROUND THREAD (Task.detached) để không block UI
+    /// Đồng bộ trạng thái — dùng kill(pid,0) O(1) syscall
+    /// Không spawn process → không tốn memory → Apple Silicon friendly
     private func syncRunningStatus() {
-        // Capture clone data cho background check
-        let cloneSnapshots = clones.map { (id: $0.id, index: $0.cloneIndex, currentStatus: $0.status, pid: $0.processID, name: $0.name) }
+        var changed = false
         
-        guard !cloneSnapshots.isEmpty else { return }
-        
-        Task.detached(priority: .utility) {
-            // Build immutable results array trên background thread
-            let results = cloneSnapshots.map { snap in
-                let running = ProcessManager.checkCloneRunning(cloneIndex: snap.index, knownPID: snap.pid)
-                return (id: snap.id, isRunning: running, currentName: snap.name)
-            }
+        for i in clones.indices {
+            let clone = clones[i]
             
-            // Apply kết quả trên MainActor
-            await MainActor.run { [weak self] in
-                guard let self = self else { return }
-                var changed = false
-                for result in results {
-                    guard let idx = self.clones.firstIndex(where: { $0.id == result.id }) else { continue }
-                    
-                    if self.clones[idx].status == .running && !result.isRunning {
-                        DiagnosticLogger.info("SYNC", "→ '\(self.clones[idx].name)' running→stopped")
-                        self.clones[idx].status = .stopped
-                        self.clones[idx].processID = nil
+            if clone.status == .running {
+                // Kiểm tra bằng kill(pid,0) — O(1) syscall, không spawn process
+                if let pid = clone.processID {
+                    if !ProcessManager.isRunning(pid: pid) {
+                        clones[i].status = .stopped
+                        clones[i].processID = nil
                         changed = true
-                    } else if self.clones[idx].status == .stopped && result.isRunning {
-                        DiagnosticLogger.info("SYNC", "→ '\(self.clones[idx].name)' stopped→running ✅")
-                        self.clones[idx].status = .running
-                        changed = true
+                        DiagnosticLogger.info("SYNC", "'\(clone.name)' running→stopped (PID \(pid) exited)")
                     }
-                }
-                if changed {
-                    self.objectWillChange.send()
-                    self.saveClones()
-                    DiagnosticLogger.success("SYNC", "UI đã cập nhật trạng thái")
+                } else {
+                    // Không có PID → đánh dấu stopped
+                    clones[i].status = .stopped
+                    changed = true
                 }
             }
+            // Không cần check stopped→running ở đây vì launch luôn set PID
+        }
+        
+        if changed {
+            objectWillChange.send()
+            saveClones()
         }
     }
     
@@ -242,29 +226,33 @@ class CloneStore: ObservableObject {
         }
     }
     
-    /// Đồng bộ trạng thái process khi app khởi động — copy từ zDesk-Pro
+    /// Startup sync — dùng kill(pid,0) cho PID đã biết, pgrep chỉ cho orphan recovery
     private func syncProcessStatus() {
         DiagnosticLogger.info("STORE", "Sync process status cho \(clones.count) clones...")
         var changed = 0
         
         for i in clones.indices {
-            let pidAlive = clones[i].processID != nil && ProcessManager.isRunning(pid: clones[i].processID!)
-            let pgrepAlive = ProcessManager.checkCloneRunning(cloneIndex: clones[i].cloneIndex, knownPID: nil)
-            
-            if pidAlive || pgrepAlive {
+            if let pid = clones[i].processID, ProcessManager.isRunning(pid: pid) {
+                // PID vẫn sống → running
                 clones[i].status = .running
-                DiagnosticLogger.info("STORE", "  '\(clones[i].name)' → running")
             } else {
-                if clones[i].status == .running { changed += 1 }
-                clones[i].status = .stopped
-                clones[i].processID = nil
-                DiagnosticLogger.info("STORE", "  '\(clones[i].name)' → stopped")
+                // PID không có hoặc đã chết → kiểm tra orphan bằng pgrep (1 lần duy nhất)
+                let orphanAlive = ProcessManager.checkCloneRunning(
+                    cloneIndex: clones[i].cloneIndex, knownPID: nil
+                )
+                if orphanAlive {
+                    clones[i].status = .running
+                    DiagnosticLogger.info("STORE", "  '\(clones[i].name)' → running (orphan recovered)")
+                } else {
+                    if clones[i].status == .running { changed += 1 }
+                    clones[i].status = .stopped
+                    clones[i].processID = nil
+                }
             }
         }
         
         if changed > 0 {
             saveClones()
-            DiagnosticLogger.info("STORE", "Sync xong: \(changed) clones đổi trạng thái")
         }
     }
 }

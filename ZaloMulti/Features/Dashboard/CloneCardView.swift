@@ -216,8 +216,7 @@ struct CloneCardView: View {
     }
     
     private func loadAvatar() {
-        // Luôn clear cache để lấy avatar mới nhất (user có thể hoán chuyển tài khoản)
-        AvatarExtractor.clearCache(cloneIndex: clone.cloneIndex)
+        // Sử dụng cache — chỉ clear khi clone status thay đổi (onChange ở trên)
         AvatarExtractor.loadProfile(cloneIndex: clone.cloneIndex) { profile, image in
             if let image = image {
                 withAnimation(.easeIn(duration: 0.3)) {
