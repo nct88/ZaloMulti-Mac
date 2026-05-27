@@ -106,7 +106,7 @@ struct SidebarFooterView: View {
                 Circle()
                     .fill(Color.green)
                     .frame(width: 6, height: 6)
-                Text("Phiên bản v1.1.0")
+                Text("Phiên bản v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0")")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
