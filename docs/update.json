@@ -1,8 +1,8 @@
 {
     "version": "2.0.0",
-    "build": 2,
+    "build": 3,
     "release_date": "2026-05-27",
-    "release_notes": "Hotfix bảo mật, cải thiện hiệu năng hệ thống.\n\n• Mã hóa AES-256-GCM cho toàn bộ dữ liệu nhạy cảm\n• Anti-tamper: phát hiện công cụ phân tích, chống injection\n• Tối ưu CPU 95% khi chạy nhiều tài khoản\n• Notification kqueue event-driven — 0% CPU khi idle\n• Thread-safe avatar cache (NSCache)\n• Cập nhật tự động trong app",
+    "release_notes": "ZaloMulti v2.0 — Bản cập nhật lớn\n\n🔒 Bảo mật:\n• Mã hóa AES-256-GCM cho toàn bộ dữ liệu nhạy cảm\n• Anti-tamper: phát hiện công cụ phân tích, chống injection\n\n⚡ Hiệu năng:\n• Tối ưu CPU 95% — kernel syscall thay pgrep\n• Notification kqueue event-driven — 0% CPU khi idle\n• Thread-safe avatar cache (NSCache)\n\n🆕 Tính năng mới:\n• Cập nhật tự động trong app\n\n🐛 Sửa lỗi:\n• Fix crash Release mode (@EnvironmentObject → @ObservedObject)\n• Fix AntiTamper crash khi chưa code sign\n• Version hiển thị dynamic từ Bundle\n• Refactor Zalo detect — ổn định view lifecycle",
     "download_url": "https://truong.me/zalo-multi-mac/download/ZaloMulti-v2.0.zip",
     "download_size": 1048576,
     "min_os_version": "14.0",

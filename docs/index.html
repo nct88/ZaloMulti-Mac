@@ -212,7 +212,7 @@
     <div class="hero">
         <div class="hero-badge">
             <span class="dot"></span>
-            macOS — v2.0
+            macOS — v2.0 · Build 27/05/2026
         </div>
         <h1>Chạy nhiều tài khoản Zalo<br>trên <span class="highlight">một chiếc Mac</span></h1>
         <p>Quản lý đồng thời không giới hạn tài khoản Zalo Desktop. Bảo mật AES-256, hiệu năng tối ưu cho Apple Silicon.</p>
@@ -269,7 +269,7 @@
     <section id="changelog">
         <p class="section-label">Changelog</p>
         <h2 class="section-title">Có gì mới trong v2.0</h2>
-        <p class="section-desc">Bản cập nhật lớn với trọng tâm bảo mật và hiệu năng.</p>
+        <p class="section-desc">Bản cập nhật lớn với trọng tâm bảo mật, hiệu năng và ổn định. <span style="color:var(--green); font-weight:500;">Cập nhật: 27/05/2026</span></p>
         <div class="changelog-list">
             <div class="changelog-item">
                 <span class="tag tag-security">Bảo mật</span>
@@ -297,7 +297,19 @@
             </div>
             <div class="changelog-item">
                 <span class="tag tag-fix">Sửa lỗi</span>
-                <span>Hotfix bảo mật, cải thiện hiệu năng hệ thống.</span>
+                <span>Fix crash Release mode — chuyển @EnvironmentObject sang @ObservedObject singleton.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-fix">Sửa lỗi</span>
+                <span>Fix AntiTamper crash — bỏ qua protection khi app chưa code sign (Debug mode).</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-fix">Sửa lỗi</span>
+                <span>Phiên bản hiển thị dynamic từ Bundle — không còn hardcode version string.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-improve">Cải tiến</span>
+                <span>Refactor Zalo detect — inline computed property, loại bỏ dependency thừa, ổn định view lifecycle.</span>
             </div>
         </div>
     </section>
