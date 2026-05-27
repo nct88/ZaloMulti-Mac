@@ -28,6 +28,7 @@ final class InAppUpdater: ObservableObject {
     
     @Published var state: UpdateState = .idle
     @Published var downloadProgress: Double = 0
+    @Published var showUpdateSheet = false
     
     /// Thông tin bản mới
     private var latestVersion: String = ""
@@ -94,7 +95,8 @@ final class InAppUpdater: ObservableObject {
                     downloadURL = zipAsset.flatMap { URL(string: $0.browserDownloadUrl) }
                     
                     state = .available(version: latestVer, notes: releaseNotes)
-                    DiagnosticLogger.info("UPDATE", "Bản mới \(latestVer) sẵn sàng")
+                    showUpdateSheet = true
+                    DiagnosticLogger.info("UPDATE", "Bản mới \(latestVer) sẵn sàng — hiện sheet")
                 } else {
                     state = showUpToDatePrompt ? .upToDate : .idle
                 }
@@ -157,11 +159,13 @@ final class InAppUpdater: ObservableObject {
         downloadDelegate?.session?.invalidateAndCancel()
         downloadDelegate = nil
         state = .idle
+        showUpdateSheet = false
     }
     
     /// Reset state
     func dismiss() {
         state = .idle
+        showUpdateSheet = false
     }
     
     // MARK: - Download with Progress
