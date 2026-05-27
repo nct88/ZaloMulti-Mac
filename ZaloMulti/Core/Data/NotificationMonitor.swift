@@ -3,6 +3,9 @@
 //
 // Theo dõi và chặn thông báo từ các Zalo clone processes.
 // Chuyển thông báo vào sidebar để bảo vệ quyền riêng tư.
+//
+// ⚡ Performance: Dùng DispatchSource (kqueue) thay vì polling filesystem.
+//    kqueue là kernel-level event → zero CPU khi idle, instant notification.
 
 @preconcurrency import Foundation
 import AppKit
@@ -14,21 +17,29 @@ final class NotificationMonitor: ObservableObject {
     @Published var notifications: [PrivateNotification] = []
     @Published var unreadCount: Int = 0
     
-    private var pollingTimer: Timer?
-    private var lastPollTimestamp: TimeInterval = 0
+    /// File system watchers (kqueue-based)
+    private var watchers: [Int: DispatchSourceFileSystemObject] = [:]
+    private var watcherFDs: [Int: Int32] = [:]
     
-    // Giới hạn số thông báo giữ lại
+    /// Fallback polling cho directories chưa tồn tại
+    private var fallbackTimer: Timer?
+    
+    /// Debounce: tránh fire quá nhiều khi Zalo ghi nhiều files
+    private var lastNotifTime: [Int: Date] = [:]
+    private let debounceInterval: TimeInterval = 5.0
+    
     private let maxNotifications = 100
     
     init() {
         DiagnosticLogger.info("NOTIF", "NotificationMonitor khởi tạo")
-        lastPollTimestamp = Date().timeIntervalSinceReferenceDate
-        startMonitoring()
+        setupWatchers()
     }
+    
+    // Cleanup: DispatchSource cancel handlers close file descriptors automatically
+    // Timer invalidated by ARC releasing the weak reference
     
     // MARK: - Public API
     
-    /// Đánh dấu một thông báo đã đọc
     func markAsRead(_ notification: PrivateNotification) {
         if let index = notifications.firstIndex(where: { $0.id == notification.id }) {
             notifications[index].isRead = true
@@ -36,7 +47,6 @@ final class NotificationMonitor: ObservableObject {
         }
     }
     
-    /// Đánh dấu tất cả đã đọc
     func markAllAsRead() {
         for i in notifications.indices {
             notifications[i].isRead = true
@@ -44,91 +54,112 @@ final class NotificationMonitor: ObservableObject {
         updateUnreadCount()
     }
     
-    /// Xóa một thông báo
     func removeNotification(_ notification: PrivateNotification) {
         notifications.removeAll { $0.id == notification.id }
         updateUnreadCount()
     }
     
-    /// Xóa tất cả thông báo
     func clearAll() {
         notifications.removeAll()
         unreadCount = 0
     }
     
-    // MARK: - Monitoring
+    // MARK: - DispatchSource File Watching (kqueue)
     
-    private func startMonitoring() {
-        // Polling: kiểm tra Zalo notification log files
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.pollZaloNotifications()
-            }
-        }
-        
-        DiagnosticLogger.info("NOTIF", "Bắt đầu monitoring notifications")
-    }
-    
-    /// Polling Zalo notification logs cho thông báo mới
-    private func pollZaloNotifications() {
+    /// Setup kqueue watchers cho mỗi clone data directory
+    private func setupWatchers() {
         let basePath = "\(NSHomeDirectory())/Library/Application Support/ZaloMulti/Data"
         let fm = FileManager.default
         
-        guard fm.fileExists(atPath: basePath) else { return }
+        guard fm.fileExists(atPath: basePath),
+              let cloneDirs = try? fm.contentsOfDirectory(atPath: basePath) else {
+            // Directory chưa tồn tại → fallback polling chậm (30s) để chờ tạo
+            startFallbackTimer()
+            return
+        }
         
-        // Scan qua từng clone directory
-        guard let cloneDirs = try? fm.contentsOfDirectory(atPath: basePath) else { return }
-        
+        var watchedCount = 0
         for dir in cloneDirs where dir.hasPrefix("clone") {
             let cloneIndex = Int(dir.replacingOccurrences(of: "clone", with: "")) ?? 0
+            let watchPath = "\(basePath)/\(dir)/ZaloData/Partitions/zalo/Local Storage/leveldb"
             
-            // Kiểm tra Zalo notification database (Partitions/zalo/Notification)
-            let notifPaths = [
-                "\(basePath)/\(dir)/ZaloData/Partitions/zalo/Local Storage/leveldb",
-                "\(basePath)/\(dir)/ZaloData/Databases"
-            ]
-            
-            for notifPath in notifPaths {
-                guard fm.fileExists(atPath: notifPath) else { continue }
-                
-                // Kiểm tra file modification time
-                if let attrs = try? fm.attributesOfItem(atPath: notifPath),
-                   let modDate = attrs[.modificationDate] as? Date {
-                    let modTime = modDate.timeIntervalSinceReferenceDate
-                    
-                    // Chỉ xử lý nếu có thay đổi mới
-                    if modTime > lastPollTimestamp {
-                        // Có activity mới từ clone này
-                        let profile = AvatarExtractor.extractProfile(cloneIndex: cloneIndex)
-                        let cloneName = profile?.displayName ?? "Clone \(cloneIndex)"
-                        let avatarColor = CloneAccount.colorForIndex(cloneIndex)
-                        
-                        // Tạo thông báo activity
-                        let isDuplicate = notifications.contains { n in
-                            n.cloneName == cloneName &&
-                            Date().timeIntervalSince(n.timestamp) < 10
-                        }
-                        
-                        if !isDuplicate {
-                            addNotification(
-                                cloneId: nil,
-                                cloneName: cloneName,
-                                avatarColor: avatarColor,
-                                title: "Hoạt động mới",
-                                body: "Có tin nhắn hoặc hoạt động mới từ \(cloneName)"
-                            )
-                        }
-                    }
-                }
+            guard fm.fileExists(atPath: watchPath) else { continue }
+            watchDirectory(path: watchPath, cloneIndex: cloneIndex)
+            watchedCount += 1
+        }
+        
+        // Fallback timer để bắt clone mới được tạo
+        startFallbackTimer()
+        
+        DiagnosticLogger.info("NOTIF", "Setup \(watchedCount) kqueue watchers")
+    }
+    
+    /// Watch 1 directory bằng kqueue DispatchSource — zero CPU khi idle
+    private func watchDirectory(path: String, cloneIndex: Int) {
+        // Skip nếu đã watch
+        guard watchers[cloneIndex] == nil else { return }
+        
+        let fd = open(path, O_EVTONLY | O_CLOEXEC)
+        guard fd >= 0 else { return }
+        
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd,
+            eventMask: [.write, .extend, .rename],
+            queue: DispatchQueue.global(qos: .utility)
+        )
+        
+        source.setEventHandler { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.handleFileChange(cloneIndex: cloneIndex)
             }
         }
         
-        lastPollTimestamp = Date().timeIntervalSinceReferenceDate
+        source.setCancelHandler {
+            close(fd)
+        }
+        
+        source.resume()
+        watchers[cloneIndex] = source
+        watcherFDs[cloneIndex] = fd
+    }
+    
+    /// Handle file change event — debounced
+    private func handleFileChange(cloneIndex: Int) {
+        let now = Date()
+        
+        // Debounce: bỏ qua nếu đã fire gần đây
+        if let last = lastNotifTime[cloneIndex],
+           now.timeIntervalSince(last) < debounceInterval {
+            return
+        }
+        lastNotifTime[cloneIndex] = now
+        
+        // Trích xuất profile info
+        let profile = AvatarExtractor.extractProfile(cloneIndex: cloneIndex)
+        let cloneName = profile?.displayName ?? "Clone \(cloneIndex)"
+        let avatarColor = CloneAccount.colorForIndex(cloneIndex)
+        
+        addNotification(
+            cloneId: nil,
+            cloneName: cloneName,
+            avatarColor: avatarColor,
+            title: "Hoạt động mới",
+            body: "Có tin nhắn hoặc hoạt động mới từ \(cloneName)"
+        )
+    }
+    
+    /// Fallback timer — scan mỗi 30s cho clone mới (thay vì 3s polling cũ)
+    private func startFallbackTimer() {
+        fallbackTimer?.invalidate()
+        fallbackTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.setupWatchers()
+            }
+        }
     }
     
     // MARK: - Add Notification
     
-    /// Thêm thông báo từ clone cụ thể (được gọi từ CloneStore)
     func addFromClone(_ clone: CloneAccount, title: String, body: String) {
         addNotification(
             cloneId: clone.id,
@@ -155,7 +186,6 @@ final class NotificationMonitor: ObservableObject {
             timestamp: Date()
         )
         
-        // Thêm vào đầu danh sách
         withAnimation(.easeInOut(duration: 0.2)) {
             notifications.insert(notification, at: 0)
         }
@@ -166,7 +196,6 @@ final class NotificationMonitor: ObservableObject {
         }
         
         updateUnreadCount()
-        
         DiagnosticLogger.info("NOTIF", "[\(cloneName)] \(title): \(body.prefix(50))")
     }
     

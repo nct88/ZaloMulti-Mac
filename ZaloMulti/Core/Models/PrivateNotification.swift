@@ -24,9 +24,14 @@ struct PrivateNotification: Identifiable, Equatable {
         return "\(Int(interval / 86400)) ngày"
     }
     
+    /// Cached formatter — DateFormatter tạo 1 lần duy nhất
+    private static let timestampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm · dd/MM"
+        return f
+    }()
+    
     var formattedTimestamp: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm · dd/MM"
-        return formatter.string(from: timestamp)
+        Self.timestampFormatter.string(from: timestamp)
     }
 }

@@ -155,22 +155,39 @@ final class ZaloCloneEngine: ObservableObject {
         let fm = FileManager.default
         if fm.fileExists(atPath: destination) { try fm.removeItem(atPath: destination) }
         
-        let cloneProcess = Process()
-        cloneProcess.executableURL = URL(fileURLWithPath: "/bin/cp")
-        cloneProcess.arguments = ["-c", "-R", source, destination]
-        let pipe = Pipe()
-        cloneProcess.standardError = pipe
-        try cloneProcess.run()
-        cloneProcess.waitUntilExit()
-        
-        if cloneProcess.terminationStatus != 0 {
-            let rsyncProcess = Process()
-            rsyncProcess.executableURL = URL(fileURLWithPath: "/usr/bin/rsync")
-            rsyncProcess.arguments = ["-a", "--quiet", source + "/", destination + "/"]
-            try rsyncProcess.run()
-            rsyncProcess.waitUntilExit()
-            guard rsyncProcess.terminationStatus == 0 else {
-                throw CloneError.copyFailed("rsync thất bại với exit code \(rsyncProcess.terminationStatus)")
+        // Chạy cp -c (APFS clone) trên background thread
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let cloneProcess = Process()
+            cloneProcess.executableURL = URL(fileURLWithPath: "/bin/cp")
+            cloneProcess.arguments = ["-c", "-R", source, destination]
+            cloneProcess.standardOutput = FileHandle.nullDevice
+            cloneProcess.standardError = FileHandle.nullDevice
+            
+            cloneProcess.terminationHandler = { proc in
+                if proc.terminationStatus == 0 {
+                    continuation.resume()
+                } else {
+                    // Fallback: rsync
+                    let rsyncProcess = Process()
+                    rsyncProcess.executableURL = URL(fileURLWithPath: "/usr/bin/rsync")
+                    rsyncProcess.arguments = ["-a", "--quiet", source + "/", destination + "/"]
+                    rsyncProcess.standardOutput = FileHandle.nullDevice
+                    rsyncProcess.standardError = FileHandle.nullDevice
+                    
+                    rsyncProcess.terminationHandler = { rsync in
+                        if rsync.terminationStatus == 0 {
+                            continuation.resume()
+                        } else {
+                            continuation.resume(throwing: CloneError.copyFailed("rsync exit code \(rsync.terminationStatus)"))
+                        }
+                    }
+                    do { try rsyncProcess.run() } catch {
+                        continuation.resume(throwing: CloneError.copyFailed(error.localizedDescription))
+                    }
+                }
+            }
+            do { try cloneProcess.run() } catch {
+                continuation.resume(throwing: error)
             }
         }
     }
@@ -243,18 +260,46 @@ final class ZaloCloneEngine: ObservableObject {
         try data.write(to: URL(fileURLWithPath: asarPath))
     }
     
+    /// Binary replace — O(n) in-place cho same-length strings (socket paths)
     private nonisolated static func binaryReplace(in data: Data, find: String, replace: String) -> Data {
         guard let findData = find.data(using: .utf8),
               let replaceData = replace.data(using: .utf8) else { return data }
         
+        // Same-length optimization: overwrite in-place, không realloc
+        if findData.count == replaceData.count {
+            var result = data
+            result.withUnsafeMutableBytes { buffer in
+                guard let ptr = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+                let len = buffer.count
+                let findLen = findData.count
+                guard findLen <= len else { return }
+                
+                findData.withUnsafeBytes { findPtr in
+                    replaceData.withUnsafeBytes { replPtr in
+                        guard let findBase = findPtr.baseAddress,
+                              let replBase = replPtr.baseAddress else { return }
+                        var i = 0
+                        while i <= len - findLen {
+                            if memcmp(ptr + i, findBase, findLen) == 0 {
+                                memcpy(ptr + i, replBase, findLen)
+                                i += findLen
+                            } else {
+                                i += 1
+                            }
+                        }
+                    }
+                }
+            }
+            return result
+        }
+        
+        // Fallback: khác length (hiếm khi xảy ra)
         var result = data
         var searchRange = result.startIndex..<result.endIndex
-        
         while let range = result.range(of: findData, in: searchRange) {
             result.replaceSubrange(range, with: replaceData)
             searchRange = range.upperBound..<result.endIndex
         }
-        
         return result
     }
     
@@ -291,9 +336,10 @@ final class ZaloCloneEngine: ObservableObject {
         let pipe = Pipe()
         process.standardError = pipe
         try process.run()
+        // ⚡ Read pipe BEFORE waitUntilExit to prevent deadlock
+        let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
-            let errorData = pipe.fileHandleForReading.readDataToEndOfFile()
             let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
             throw CloneError.codesignFailed(errorMessage)
         }

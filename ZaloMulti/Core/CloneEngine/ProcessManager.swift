@@ -77,9 +77,6 @@ final class ProcessManager: ObservableObject {
                 }
             }
             
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-            }
             
             return pid
         } catch {

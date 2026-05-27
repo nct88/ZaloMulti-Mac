@@ -4,29 +4,47 @@
 // Trích xuất avatar + display_name từ Zalo cache data.
 // Zalo lưu profile info trong Chromium cache (Partitions/zalo/Cache)
 // Format: {"avatar":"https://...","display_name":"Tên User"}
+//
+// ⚡ Performance: Thread-safe cache với NSLock, NSCache cho memory limit,
+//    disk cache kiểm tra trước khi download.
 
 import Foundation
 import AppKit
 
 /// Profile data extracted from Zalo cache
-struct ZaloProfile {
+struct ZaloProfile: Sendable {
     let displayName: String?
     let avatarURL: String?
 }
 
-/// Trích xuất profile info từ Zalo clone cache data
+/// Trích xuất profile info từ Zalo clone cache data — thread-safe
 final class AvatarExtractor: @unchecked Sendable {
     
-    /// Cache avatar đã download
-    nonisolated(unsafe) private static var avatarCache: [Int: NSImage] = [:]
+    // MARK: - Thread-Safe Cache (NSLock + NSCache)
+    
+    private static let lock = NSLock()
+    
+    /// NSCache tự động evict khi memory pressure — tốt hơn Dictionary
+    nonisolated(unsafe) private static let imageCache = NSCache<NSNumber, NSImage>()
     nonisolated(unsafe) private static var profileCache: [Int: ZaloProfile] = [:]
     
-    /// Trích xuất profile (avatar + display_name) từ cache
+    /// Cấu hình cache limit
+    private static let _configureOnce: Void = {
+        imageCache.countLimit = 20       // Tối đa 20 avatar images
+        imageCache.totalCostLimit = 50 * 1024 * 1024  // 50 MB
+    }()
+    
+    // MARK: - Profile Extraction
+    
+    /// Trích xuất profile (avatar + display_name) từ cache — thread-safe
     nonisolated static func extractProfile(cloneIndex: Int) -> ZaloProfile? {
-        // Check cache first
-        if let cached = profileCache[cloneIndex] {
-            return cached
-        }
+        _ = _configureOnce
+        
+        // Check cache (thread-safe)
+        lock.lock()
+        let cached = profileCache[cloneIndex]
+        lock.unlock()
+        if let cached = cached { return cached }
         
         let cacheDir = "\(ZaloPaths.zaloDataBase)/Data/clone\(cloneIndex)/ZaloData/Partitions/zalo/Cache/Cache_Data"
         let fm = FileManager.default
@@ -43,58 +61,59 @@ final class AvatarExtractor: @unchecked Sendable {
         // Scan cache files for profile JSON
         for file in files where file.hasSuffix("_0") {
             let filePath = "\(cacheDir)/\(file)"
-            guard let data = fm.contents(atPath: filePath) else { continue }
             
-            // Tìm avatar marker trong raw bytes
-            guard let avatarIdx = data.range(of: avatarMarker) else { continue }
-            
-            // Tìm "{" trước avatar marker
-            var jsonStart = avatarIdx.lowerBound
-            while jsonStart > 0 {
-                jsonStart -= 1
-                if data[jsonStart] == openingBrace { break }
-            }
-            
-            // Tìm "}" cuối cùng liên tiếp sau avatar (JSON closing)
-            var jsonEnd = avatarIdx.upperBound
-            while jsonEnd < data.count - 1 {
-                if data[jsonEnd] == closingBrace {
-                    // Check if next byte is also } (nested JSON)
-                    if jsonEnd + 1 < data.count && data[jsonEnd + 1] == closingBrace {
-                        jsonEnd += 1
-                    } else {
-                        break
-                    }
+            // Autoreleasepool: giải phóng mỗi file data ngay sau khi scan xong
+            let result: ZaloProfile? = autoreleasepool {
+                guard let data = fm.contents(atPath: filePath) else { return nil }
+                guard let avatarIdx = data.range(of: avatarMarker) else { return nil }
+                
+                var jsonStart = avatarIdx.lowerBound
+                while jsonStart > 0 {
+                    jsonStart -= 1
+                    if data[jsonStart] == openingBrace { break }
                 }
-                jsonEnd += 1
+                
+                var jsonEnd = avatarIdx.upperBound
+                while jsonEnd < data.count - 1 {
+                    if data[jsonEnd] == closingBrace {
+                        if jsonEnd + 1 < data.count && data[jsonEnd + 1] == closingBrace {
+                            jsonEnd += 1
+                        } else {
+                            break
+                        }
+                    }
+                    jsonEnd += 1
+                }
+                
+                let jsonData = data[jsonStart...jsonEnd]
+                guard let jsonStr = String(data: jsonData, encoding: .utf8) else { return nil }
+                
+                var avatarURL: String?
+                if let range = jsonStr.range(of: #""avatar":"(https:[^"]+)""#, options: .regularExpression) {
+                    avatarURL = String(jsonStr[range])
+                        .replacingOccurrences(of: "\"avatar\":\"", with: "")
+                        .replacingOccurrences(of: "\"", with: "")
+                        .replacingOccurrences(of: "\\/", with: "/")
+                        .replacingOccurrences(of: "/120/", with: "/240/")
+                }
+                
+                var displayName: String?
+                if let range = jsonStr.range(of: #""display_name":"([^"]+)""#, options: .regularExpression) {
+                    displayName = String(jsonStr[range])
+                        .replacingOccurrences(of: "\"display_name\":\"", with: "")
+                        .replacingOccurrences(of: "\"", with: "")
+                }
+                
+                if avatarURL != nil || displayName != nil {
+                    return ZaloProfile(displayName: displayName, avatarURL: avatarURL)
+                }
+                return nil
             }
             
-            // Extract exact JSON chunk and decode as UTF-8
-            let jsonData = data[jsonStart...jsonEnd]
-            guard let jsonStr = String(data: jsonData, encoding: .utf8) else { continue }
-            
-            // Extract avatar URL
-            var avatarURL: String?
-            if let range = jsonStr.range(of: #""avatar":"(https:[^"]+)""#, options: .regularExpression) {
-                avatarURL = String(jsonStr[range])
-                    .replacingOccurrences(of: "\"avatar\":\"", with: "")
-                    .replacingOccurrences(of: "\"", with: "")
-                    .replacingOccurrences(of: "\\/", with: "/")
-                    .replacingOccurrences(of: "/120/", with: "/240/")
-            }
-            
-            // Extract display_name
-            var displayName: String?
-            if let range = jsonStr.range(of: #""display_name":"([^"]+)""#, options: .regularExpression) {
-                displayName = String(jsonStr[range])
-                    .replacingOccurrences(of: "\"display_name\":\"", with: "")
-                    .replacingOccurrences(of: "\"", with: "")
-            }
-            
-            if avatarURL != nil || displayName != nil {
-                let profile = ZaloProfile(displayName: displayName, avatarURL: avatarURL)
+            if let profile = result {
+                lock.lock()
                 profileCache[cloneIndex] = profile
-                DiagnosticLogger.info("PROFILE", "Clone \(cloneIndex): name='\(displayName ?? "?")' avatar=\(avatarURL != nil ? "✓" : "✗")")
+                lock.unlock()
                 return profile
             }
         }
@@ -112,10 +131,15 @@ final class AvatarExtractor: @unchecked Sendable {
         return extractProfile(cloneIndex: cloneIndex)?.displayName
     }
     
-    /// Download avatar image (cached)
+    // MARK: - Avatar Loading (cached, thread-safe)
+    
+    /// Download avatar image — NSCache auto-evict + disk cache
     static func loadAvatar(cloneIndex: Int, completion: @escaping (NSImage?) -> Void) {
-        // Check memory cache
-        if let cached = avatarCache[cloneIndex] {
+        _ = _configureOnce
+        let key = NSNumber(value: cloneIndex)
+        
+        // Check memory cache (thread-safe via NSCache)
+        if let cached = imageCache.object(forKey: key) {
             completion(cached)
             return
         }
@@ -124,7 +148,7 @@ final class AvatarExtractor: @unchecked Sendable {
         let cachePath = "\(ZaloPaths.zaloDataBase)/Data/clone\(cloneIndex)/avatar_cache.jpg"
         if FileManager.default.fileExists(atPath: cachePath),
            let image = NSImage(contentsOfFile: cachePath) {
-            avatarCache[cloneIndex] = image
+            imageCache.setObject(image, forKey: key, cost: estimateImageCost(image))
             completion(image)
             return
         }
@@ -145,7 +169,9 @@ final class AvatarExtractor: @unchecked Sendable {
             // Save to disk cache
             try? data.write(to: URL(fileURLWithPath: cachePath))
             
-            avatarCache[cloneIndex] = image
+            // Save to memory cache with estimated cost
+            imageCache.setObject(image, forKey: key, cost: estimateImageCost(image))
+            
             DispatchQueue.main.async { completion(image) }
         }.resume()
     }
@@ -158,17 +184,32 @@ final class AvatarExtractor: @unchecked Sendable {
         }
     }
     
-    /// Xoá cache (khi user đổi avatar/tên)
+    /// Xoá cache (khi user đổi avatar/tên) — thread-safe
     static func clearCache(cloneIndex: Int) {
-        avatarCache.removeValue(forKey: cloneIndex)
+        let key = NSNumber(value: cloneIndex)
+        imageCache.removeObject(forKey: key)
+        
+        lock.lock()
         profileCache.removeValue(forKey: cloneIndex)
+        lock.unlock()
+        
         let cachePath = "\(ZaloPaths.zaloDataBase)/Data/clone\(cloneIndex)/avatar_cache.jpg"
         try? FileManager.default.removeItem(atPath: cachePath)
     }
     
     /// Xoá tất cả cache
     static func clearAllCache() {
-        avatarCache.removeAll()
+        imageCache.removeAllObjects()
+        lock.lock()
         profileCache.removeAll()
+        lock.unlock()
+    }
+    
+    // MARK: - Helpers
+    
+    /// Estimate NSImage memory cost
+    private static func estimateImageCost(_ image: NSImage) -> Int {
+        guard let rep = image.representations.first else { return 100_000 }
+        return rep.pixelsWide * rep.pixelsHigh * 4 // 4 bytes per pixel (RGBA)
     }
 }
