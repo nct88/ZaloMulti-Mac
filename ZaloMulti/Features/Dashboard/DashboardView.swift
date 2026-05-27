@@ -40,11 +40,10 @@ struct DashboardView: View {
                     CloneCardView(clone: clone)
                 }
                 
-                // Nút thêm clone mới
-                AddCloneCardView()
-                    .onTapGesture {
-                        store.showAddCloneSheet = true
-                    }
+                // Nút thêm clone mới — dùng Button thay vì onTapGesture
+                AddCloneCardView {
+                    store.showAddCloneSheet = true
+                }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
@@ -60,55 +59,51 @@ struct DashboardView: View {
 // MARK: - Add Clone Card
 struct AddCloneCardView: View {
     @State private var isHovered = false
+    var action: () -> Void
     
     var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                Circle()
-                    .fill(isHovered ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.3))
-                    .frame(width: 36, height: 36)
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(isHovered ? Color.accentColor : Color(nsColor: .separatorColor).opacity(0.3))
+                        .frame(width: 36, height: 36)
+                    
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(isHovered ? .white : .secondary)
+                }
                 
-                Image(systemName: "plus")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(isHovered ? .white : .secondary)
+                Text("Thêm tài khoản")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isHovered ? .accentColor : .secondary)
             }
-            
-            Text("Thêm tài khoản")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(isHovered ? .accentColor : .secondary)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 130)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color(nsColor: .windowBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(
+                                isHovered ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.15),
+                                style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                            )
+                    )
+            )
+            .shadow(color: .black.opacity(isHovered ? 0.08 : 0.04), radius: isHovered ? 8 : 4, y: 2)
+            .scaleEffect(isHovered ? 1.01 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
         }
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: 130)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color(nsColor: .windowBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(
-                            isHovered ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.15),
-                            style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
-                        )
-                )
-        )
-        .shadow(color: .black.opacity(isHovered ? 0.08 : 0.04), radius: isHovered ? 8 : 4, y: 2)
-        .scaleEffect(isHovered ? 1.01 : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .buttonStyle(.plain)
         .onHover { hovering in
             isHovered = hovering
-        }
-        .cursor(.pointingHand)
-    }
-}
-
-// MARK: - NSCursor extension
-extension View {
-    func cursor(_ cursor: NSCursor) -> some View {
-        onHover { inside in
-            if inside {
-                cursor.push()
+            if hovering {
+                NSCursor.pointingHand.push()
             } else {
                 NSCursor.pop()
             }
         }
     }
 }
+
