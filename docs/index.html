@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zalỏ macOS — Quản lý đa tài khoản Zalo Desktop</title>
-    <meta name="description" content="Chạy đồng thời nhiều tài khoản Zalo Desktop trên macOS. Miễn phí & mã nguồn mở.">
-    <meta property="og:title" content="Zalỏ macOS v1.2.0">
+    <meta name="description" content="Chạy đồng thời nhiều tài khoản Zalo Desktop trên macOS. Miễn phí & mã nguồn mở. Phiên bản 2.0 với bảo mật nâng cao và hiệu năng tối ưu.">
+    <meta property="og:title" content="Zalỏ macOS v2.0">
     <meta property="og:description" content="Chạy đồng thời nhiều tài khoản Zalo Desktop trên macOS. Miễn phí & mã nguồn mở.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://nct88.github.io/ZaloMulti-Mac/">
+    <meta property="og:url" content="https://truong.me/zalo-multi-mac/">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -70,7 +70,8 @@
             font-size: 13px; font-weight: 500; color: var(--accent);
             margin-bottom: 24px;
         }
-        .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+        .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
         .hero h1 {
             font-size: 48px; font-weight: 800; line-height: 1.15;
             letter-spacing: -1.5px; margin-bottom: 20px;
@@ -87,6 +88,7 @@
             background: var(--accent); color: #fff;
             font-weight: 600; font-size: 15px; text-decoration: none;
             transition: transform 0.15s, box-shadow 0.15s;
+            cursor: pointer;
         }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59,130,246,0.3); }
         .btn-secondary {
@@ -161,6 +163,7 @@
         .tag-fix { background: rgba(34,197,94,0.15); color: #22c55e; }
         .tag-new { background: rgba(59,130,246,0.15); color: #3b82f6; }
         .tag-improve { background: rgba(168,85,247,0.15); color: #a855f7; }
+        .tag-security { background: rgba(239,68,68,0.15); color: #ef4444; }
 
         /* FAQ */
         .faq-list { display: flex; flex-direction: column; gap: 12px; max-width: 700px; }
@@ -196,6 +199,7 @@
             <a href="#" class="nav-brand">Zalỏ <span>macOS</span></a>
             <div class="nav-links">
                 <a href="#features">Tính năng</a>
+                <a href="#changelog">Changelog</a>
                 <a href="#install">Cài đặt</a>
                 <a href="#faq">FAQ</a>
                 <a href="https://d.truong.it/donate" target="_blank">Donate</a>
@@ -208,13 +212,13 @@
     <div class="hero">
         <div class="hero-badge">
             <span class="dot"></span>
-            macOS — v1.2.0
+            macOS — v2.0
         </div>
         <h1>Chạy nhiều tài khoản Zalo<br>trên <span class="highlight">một chiếc Mac</span></h1>
-        <p>Quản lý đồng thời không giới hạn tài khoản Zalo Desktop. Dữ liệu biệt lập, phiên đăng nhập bền vững, mã nguồn mở.</p>
+        <p>Quản lý đồng thời không giới hạn tài khoản Zalo Desktop. Bảo mật AES-256, hiệu năng tối ưu cho Apple Silicon.</p>
         <div class="hero-actions">
-            <a href="https://github.com/nct88/ZaloMulti-Mac/releases/latest" class="btn-primary">
-                ⬇ Tải DMG miễn phí
+            <a id="download-btn" href="#" class="btn-primary" onclick="startDownload(event)">
+                ⬇ Tải v2.0 miễn phí
             </a>
             <a href="https://github.com/nct88/ZaloMulti-Mac" class="btn-secondary">
                 Xem mã nguồn
@@ -235,8 +239,8 @@
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔒</div>
-                <h3>An toàn & Bảo mật</h3>
-                <p>Dữ liệu mỗi tài khoản được cách ly. Không can thiệp Zalo gốc, không sửa đổi mã nguồn.</p>
+                <h3>Bảo mật AES-256-GCM</h3>
+                <p>Dữ liệu nhạy cảm được mã hóa toàn diện. Anti-tamper, chống phân tích mã nguồn.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">💾</div>
@@ -244,19 +248,56 @@
                 <p>Tắt mở clone thoải mái — không cần quét lại mã QR. Session được bảo toàn qua mỗi lần restart.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">🟢</div>
-                <h3>Trạng thái thời gian thực</h3>
-                <p>Hiển thị PID và trạng thái chạy/dừng cho từng clone. Tự đồng bộ mỗi 3 giây.</p>
+                <div class="feature-icon">⚡</div>
+                <h3>Tối ưu Apple Silicon</h3>
+                <p>Hiệu năng tối ưu cho chip M1/M2/M3/M4. Zero CPU khi idle, kqueue event-driven.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>APFS Cloning</h3>
-                <p>Tận dụng tính năng copy-on-write của macOS — tạo clone chỉ trong vài giây, tiết kiệm dung lượng.</p>
+                <div class="feature-icon">🔄</div>
+                <h3>Cập nhật tự động</h3>
+                <p>Nhận thông báo khi có bản mới, nhấn cập nhật — tải và cài đặt ngay trong app, không cần tải thủ công.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">📖</div>
                 <h3>Mã nguồn mở</h3>
                 <p>100% minh bạch trên GitHub. Bất kỳ ai cũng có thể kiểm tra, đóng góp và tự build.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CHANGELOG -->
+    <section id="changelog">
+        <p class="section-label">Changelog</p>
+        <h2 class="section-title">Có gì mới trong v2.0</h2>
+        <p class="section-desc">Bản cập nhật lớn với trọng tâm bảo mật và hiệu năng.</p>
+        <div class="changelog-list">
+            <div class="changelog-item">
+                <span class="tag tag-security">Bảo mật</span>
+                <span>Mã hóa AES-256-GCM cho toàn bộ dữ liệu nhạy cảm — API endpoints, config, thông tin người dùng.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-security">Bảo mật</span>
+                <span>Anti-tamper: phát hiện công cụ phân tích, kiểm tra toàn vẹn binary, chống injection.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-improve">Hiệu năng</span>
+                <span>Thay thế process spawning (pgrep) bằng kernel syscall — giảm 95% CPU khi chạy nhiều nick.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-improve">Hiệu năng</span>
+                <span>Notification monitoring chuyển sang kqueue (event-driven) — 0% CPU khi idle.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-improve">Hiệu năng</span>
+                <span>Thread-safe avatar cache (NSCache) — giảm memory leak khi chạy nhiều tài khoản.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-new">Mới</span>
+                <span>Cập nhật tự động trong app — tải, cài đặt và khởi động lại chỉ với một nút nhấn.</span>
+            </div>
+            <div class="changelog-item">
+                <span class="tag tag-fix">Sửa lỗi</span>
+                <span>Hotfix bảo mật, cải thiện hiệu năng hệ thống.</span>
             </div>
         </div>
     </section>
@@ -269,8 +310,8 @@
         <div class="install-steps">
             <div class="step">
                 <div class="step-number">1</div>
-                <h3>Tải DMG</h3>
-                <p>Tải file DMG từ GitHub Releases.</p>
+                <h3>Tải về</h3>
+                <p>Nhấn nút "Tải v2.0" ở trên.</p>
             </div>
             <div class="step">
                 <div class="step-number">2</div>
@@ -289,8 +330,6 @@
             </div>
         </div>
     </section>
-
-
 
     <!-- FAQ -->
     <section id="faq">
@@ -315,6 +354,10 @@
                 <p>Tại ~/Library/Application Support/ZaloMulti/. Mỗi clone có thư mục riêng, dữ liệu hoàn toàn biệt lập.</p>
             </div>
             <div class="faq-item">
+                <h3>Cập nhật tự động hoạt động thế nào?</h3>
+                <p>Khi có bản mới, app sẽ hiện thông báo. Nhấn "Cập nhật ngay" để tải và cài đặt tự động — giống Telegram, không cần mở trình duyệt.</p>
+            </div>
+            <div class="faq-item">
                 <h3>Tại sao đồng bộ tin nhắn lần đầu lâu?</h3>
                 <p>Khi đăng nhập clone lần đầu, Zalo coi đó là thiết bị mới nên cần thời gian đồng bộ. Hãy đợi 5–10 phút, không tắt Zalo giữa chừng.</p>
             </div>
@@ -331,5 +374,42 @@
         </div>
         <p>© 2026 <a href="https://truong.it">truong.it</a> — Made with ❤️ for the community.</p>
     </footer>
+
+    <!-- Download URL Encryption -->
+    <script>
+    (function(){
+        // Đường dẫn tải về được mã hóa — chống bot/scraper lấy link trực tiếp
+        // Encode: Base64 → reverse → XOR với key
+        var _k = [90,77,67,50,48,50,54];
+        var _d = 'VS4pdAYcAkRuJC5aR31dLywAGVZRXS8jLVlWH1EiIHdfRlxHLmA1WlNKHSYgdFFcX0cxOXUZCENCNzky';
+        
+        function _x(s, k) {
+            var r = '';
+            for (var i = 0; i < s.length; i++) {
+                r += String.fromCharCode(s.charCodeAt(i) ^ k[i % k.length]);
+            }
+            return r;
+        }
+        
+        function _decode() {
+            try {
+                var b = atob(_d);
+                var reversed = b.split('').reverse().join('');
+                return _x(reversed, _k);
+            } catch(e) { return null; }
+        }
+        
+        window.startDownload = function(e) {
+            e.preventDefault();
+            var url = _decode();
+            if (url) {
+                window.location.href = url;
+            } else {
+                // Fallback
+                window.location.href = 'https://github.com/nct88/ZaloMulti-Mac/releases/latest';
+            }
+        };
+    })();
+    </script>
 </body>
 </html>
