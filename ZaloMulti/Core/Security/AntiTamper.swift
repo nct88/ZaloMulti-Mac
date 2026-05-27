@@ -143,11 +143,18 @@ enum AntiTamper {
     /// Khởi tạo bảo vệ khi app start — gọi từ App.init()
     static func initialize() {
         #if !DEBUG
+        // Chỉ bật anti-tamper khi app đã được code sign đúng cách
+        // Tránh crash khi chạy từ Xcode hoặc ad-hoc build
+        guard isCodeSignatureValid else {
+            DiagnosticLogger.warning("SECURITY", "App chưa được code sign — anti-tamper disabled")
+            return
+        }
+        
         denyDebuggerAttach()
         
-        // Periodic check mỗi 30 giây
+        // Periodic check mỗi 60 giây
         DispatchQueue.global(qos: .utility).async {
-            Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+            Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
                 if !performFullCheck() {
                     // Phát hiện tampering — silent exit
                     DispatchQueue.main.async {
