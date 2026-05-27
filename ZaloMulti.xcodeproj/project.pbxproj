@@ -33,6 +33,7 @@
 		A1000018 /* SecureConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000018 /* SecureConfig.swift */; };
 		A1000019 /* AntiTamper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000019 /* AntiTamper.swift */; };
 		A100001A /* MigrationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100001A /* MigrationManager.swift */; };
+		A2000001 /* ZaloMultiTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001 /* ZaloMultiTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +64,8 @@
 		B1000019 /* AntiTamper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiTamper.swift; sourceTree = "<group>"; };
 		B100001A /* MigrationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationManager.swift; sourceTree = "<group>"; };
 		C1000001 /* ZaloMulti.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZaloMulti.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B2000001 /* ZaloMultiTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZaloMultiTests.swift; sourceTree = "<group>"; };
+		C2000001 /* ZaloMultiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ZaloMultiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -70,6 +73,7 @@
 			isa = PBXGroup;
 			children = (
 				C1000001 /* ZaloMulti.app */,
+				C2000001 /* ZaloMultiTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -239,8 +243,17 @@
 			isa = PBXGroup;
 			children = (
 				D1000011 /* ZaloMulti */,
+				D2000001 /* ZaloMultiTests */,
 				D1000001 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		D2000001 /* ZaloMultiTests */ = {
+			isa = PBXGroup;
+			children = (
+				B2000001 /* ZaloMultiTests.swift */,
+			);
+			path = ZaloMultiTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -264,7 +277,43 @@
 			productReference = C1000001 /* ZaloMulti.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E2000001 /* ZaloMultiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F2000001 /* Build configuration list for PBXNativeTarget "ZaloMultiTests" */;
+			buildPhases = (
+				E2000002 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E2000004 /* PBXTargetDependency */,
+			);
+			name = ZaloMultiTests;
+			packageProductDependencies = (
+			);
+			productName = ZaloMultiTests;
+			productReference = C2000001 /* ZaloMultiTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXContainerItemProxy section */
+		E2000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E1000003 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E1000001;
+			remoteInfo = ZaloMulti;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		E2000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E1000001 /* ZaloMulti */;
+			targetProxy = E2000003 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		E1000003 /* Project object */ = {
@@ -294,6 +343,7 @@
 			projectRoot = "";
 			targets = (
 				E1000001 /* ZaloMulti */,
+				E2000001 /* ZaloMultiTests */,
 			);
 		};
 /* End PBXProject section */
@@ -328,6 +378,14 @@
 				A1000018 /* SecureConfig.swift in Sources */,
 				A1000019 /* AntiTamper.swift in Sources */,
 				A100001A /* MigrationManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E2000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2000001 /* ZaloMultiTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -553,7 +611,49 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		F2000001 /* Build configuration list for PBXNativeTarget "ZaloMultiTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				G2000001 /* Debug */,
+				G2000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCBuildConfiguration section — Tests */
+		G2000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.congtruongit.ZaloMultiTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ZaloMulti.app/Contents/MacOS/ZaloMulti";
+			};
+			name = Debug;
+		};
+		G2000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.congtruongit.ZaloMultiTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ZaloMulti.app/Contents/MacOS/ZaloMulti";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section — Tests */
 	};
 	rootObject = E1000003 /* Project object */;
 }
