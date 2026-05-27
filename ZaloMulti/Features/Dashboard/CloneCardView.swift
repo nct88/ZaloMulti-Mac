@@ -7,7 +7,7 @@ import SwiftUI
 
 struct CloneCardView: View {
     let clone: CloneAccount
-    @ObservedObject var store = CloneStore.shared
+    @EnvironmentObject var store: CloneStore
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
     @State private var isHovered = false

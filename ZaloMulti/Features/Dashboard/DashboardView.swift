@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @ObservedObject var store = CloneStore.shared
+    @EnvironmentObject var store: CloneStore
     
     let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -42,13 +42,16 @@ struct DashboardView: View {
                 
                 // Nút thêm clone mới — dùng Button thay vì onTapGesture
                 AddCloneCardView {
-                    DiagnosticLogger.info("UI", "Nhấn 'Thêm tài khoản' — showAddCloneSheet = true")
                     store.showAddCloneSheet = true
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
             .animation(.spring(response: 0.3), value: store.clones.count)
+        }
+        .sheet(isPresented: $store.showAddCloneSheet) {
+            AddCloneView()
+                .environmentObject(store)
         }
     }
 }
@@ -77,7 +80,6 @@ struct AddCloneCardView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(minHeight: 130)
-            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 14)
                     .fill(Color(nsColor: .windowBackgroundColor))

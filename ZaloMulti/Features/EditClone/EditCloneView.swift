@@ -7,7 +7,7 @@ import SwiftUI
 
 struct EditCloneView: View {
     @Environment(\.dismiss) var dismiss
-    @ObservedObject var store = CloneStore.shared
+    @EnvironmentObject var store: CloneStore
     
     let clone: CloneAccount
     

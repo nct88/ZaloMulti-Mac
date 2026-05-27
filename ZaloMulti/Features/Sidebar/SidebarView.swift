@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct SidebarView: View {
-    @ObservedObject var store = CloneStore.shared
+    @EnvironmentObject var store: CloneStore
     
     var body: some View {
         VStack(spacing: 0) {
@@ -98,7 +98,7 @@ struct SocialLinksView: View {
 
 // MARK: - Footer Stats
 struct SidebarFooterView: View {
-    @ObservedObject var store = CloneStore.shared
+    @EnvironmentObject var store: CloneStore
     
     var body: some View {
         VStack(spacing: 8) {

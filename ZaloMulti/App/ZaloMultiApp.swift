@@ -8,7 +8,8 @@ import SwiftUI
 
 @main
 struct ZaloMultiApp: App {
-    @ObservedObject private var updater = InAppUpdater.shared
+    @State private var showUpdateSheet = false
+    private let cloneStore = CloneStore.shared
     
     init() {
         // Security initialization
@@ -19,7 +20,6 @@ struct ZaloMultiApp: App {
         DiagnosticLogger.info("APP", "Log file: \(DiagnosticLogger.logFilePath)")
         
         // Pre-init singletons
-        _ = CloneStore.shared
         _ = NotificationMonitor.shared
         
         let zaloInfo = ZaloCloneEngine().detectSourceZalo()
@@ -28,6 +28,7 @@ struct ZaloMultiApp: App {
     var body: some Scene {
         WindowGroup("Zalỏ - macOS") {
             ContentView()
+                .environmentObject(cloneStore)
                 .frame(minWidth: 860, minHeight: 560)
                 .onAppear {
                     // Migration: cleanup dữ liệu cũ
@@ -42,10 +43,17 @@ struct ZaloMultiApp: App {
                     // Kiểm tra cập nhật ngầm (delay)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         if SettingsManager.shared.settings.checkUpdateOnStartup {
-                            DiagnosticLogger.info("APP", "Bắt đầu kiểm tra cập nhật...")
                             InAppUpdater.shared.checkForUpdates()
                         }
                     }
+                }
+                .onReceive(InAppUpdater.shared.$state) { newState in
+                    if case .available = newState {
+                        showUpdateSheet = true
+                    }
+                }
+                .sheet(isPresented: $showUpdateSheet) {
+                    UpdateProgressView(updater: InAppUpdater.shared)
                 }
         }
         .windowToolbarStyle(.unified(showsTitle: true))
@@ -60,7 +68,7 @@ struct ZaloMultiApp: App {
             CommandGroup(after: .appInfo) {
                 Button("Kiểm tra cập nhật...") {
                     InAppUpdater.shared.checkForUpdates(showUpToDatePrompt: true)
-                    InAppUpdater.shared.showUpdateSheet = true
+                    showUpdateSheet = true
                 }
             }
             CommandMenu("Clone") {
@@ -73,6 +81,7 @@ struct ZaloMultiApp: App {
         
         Settings {
             SettingsView()
+                .environmentObject(cloneStore)
         }
     }
 }

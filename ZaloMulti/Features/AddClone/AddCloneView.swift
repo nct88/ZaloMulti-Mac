@@ -7,7 +7,7 @@ import SwiftUI
 
 struct AddCloneView: View {
     @Environment(\.dismiss) var dismiss
-    @ObservedObject var store = CloneStore.shared
+    @EnvironmentObject var store: CloneStore
     
     @State private var name = ""
     @State private var phoneNumber = ""
