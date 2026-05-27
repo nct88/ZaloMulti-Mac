@@ -2,37 +2,50 @@
 // ZaloMulti
 //
 // Thanh thông báo Zalo source status
-// ⚡ Performance: Cache kết quả detectSourceZalo() — chỉ detect khi view xuất hiện
 
 import SwiftUI
 
 struct NotificationBarView: View {
-    @ObservedObject var store = CloneStore.shared
-    @State private var zaloInstalled = false
-    @State private var zaloVersion: String?
-    @State private var hasChecked = false
+    // Detect trực tiếp — không dùng @State để tránh bị reset khi view recreate
+    private var zaloInfo: (installed: Bool, version: String?, bundleID: String?) {
+        let fm = FileManager.default
+        let path = "/Applications/Zalo.app"
+        guard fm.fileExists(atPath: path) else {
+            return (false, nil, nil)
+        }
+        let plistPath = "\(path)/Contents/Info.plist"
+        if let plist = NSDictionary(contentsOfFile: plistPath) {
+            let version = plist["CFBundleShortVersionString"] as? String
+            let bundleID = plist["CFBundleIdentifier"] as? String
+            return (true, version, bundleID)
+        }
+        return (true, nil, nil)
+    }
     
     var body: some View {
+        let installed = zaloInfo.installed
+        let version = zaloInfo.version
+        
         HStack(spacing: 12) {
             // Icon
             ZStack {
                 Circle()
-                    .fill(zaloInstalled ? Color.green : Color.orange)
+                    .fill(installed ? Color.green : Color.orange)
                     .frame(width: 28, height: 28)
                 
-                Image(systemName: zaloInstalled ? "checkmark" : "exclamationmark")
+                Image(systemName: installed ? "checkmark" : "exclamationmark")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.white)
             }
             
             // Text
             VStack(alignment: .leading, spacing: 1) {
-                Text(zaloInstalled ? "Zalo Desktop đã sẵn sàng" : "Chưa cài Zalo Desktop")
+                Text(installed ? "Zalo Desktop đã sẵn sàng" : "Chưa cài Zalo Desktop")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
                 
-                Text(zaloInstalled
-                     ? "Phiên bản \(zaloVersion ?? "N/A") — Sẵn sàng tạo clone"
+                Text(installed
+                     ? "Phiên bản \(version ?? "N/A") — Sẵn sàng tạo clone"
                      : "Cài Zalo từ zalo.me/pc để bắt đầu")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -41,14 +54,14 @@ struct NotificationBarView: View {
             Spacer()
             
             // Version badge
-            if let version = zaloVersion {
+            if let version = version {
                 Text("v\(version)")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(zaloInstalled ? .green : .orange)
+                    .foregroundColor(installed ? .green : .orange)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
                     .background(
-                        (zaloInstalled ? Color.green : Color.orange)
+                        (installed ? Color.green : Color.orange)
                             .opacity(0.12)
                     )
                     .clipShape(Capsule())
@@ -58,13 +71,13 @@ struct NotificationBarView: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(zaloInstalled
+                .fill(installed
                       ? Color.green.opacity(0.08)
                       : Color.orange.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
                         .strokeBorder(
-                            zaloInstalled
+                            installed
                             ? Color.green.opacity(0.2)
                             : Color.orange.opacity(0.2),
                             lineWidth: 1
@@ -74,22 +87,5 @@ struct NotificationBarView: View {
         .padding(.horizontal, 16)
         .padding(.top, 16)
         .padding(.bottom, 8)
-        .onAppear {
-            checkZaloStatus()
-        }
-        .task {
-            // Backup: nếu onAppear không trigger, task sẽ chạy
-            if !hasChecked {
-                try? await Task.sleep(for: .milliseconds(500))
-                checkZaloStatus()
-            }
-        }
-    }
-    
-    private func checkZaloStatus() {
-        let info = store.engine.detectSourceZalo()
-        zaloInstalled = info.installed
-        zaloVersion = info.version
-        hasChecked = true
     }
 }
