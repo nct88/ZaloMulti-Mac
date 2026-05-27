@@ -2,7 +2,7 @@
 // ZaloMulti
 //
 // Thanh thông báo Zalo source status
-// ⚡ Performance: Cache kết quả detectSourceZalo() thay vì gọi mỗi lần render
+// ⚡ Performance: Cache kết quả detectSourceZalo() — chỉ detect khi view xuất hiện
 
 import SwiftUI
 
@@ -10,6 +10,7 @@ struct NotificationBarView: View {
     @ObservedObject var store = CloneStore.shared
     @State private var zaloInstalled = false
     @State private var zaloVersion: String?
+    @State private var hasChecked = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -74,10 +75,21 @@ struct NotificationBarView: View {
         .padding(.top, 16)
         .padding(.bottom, 8)
         .onAppear {
-            // Cache kết quả — chỉ detect 1 lần, không gọi trong body
-            let info = store.engine.detectSourceZalo()
-            zaloInstalled = info.installed
-            zaloVersion = info.version
+            checkZaloStatus()
         }
+        .task {
+            // Backup: nếu onAppear không trigger, task sẽ chạy
+            if !hasChecked {
+                try? await Task.sleep(for: .milliseconds(500))
+                checkZaloStatus()
+            }
+        }
+    }
+    
+    private func checkZaloStatus() {
+        let info = store.engine.detectSourceZalo()
+        zaloInstalled = info.installed
+        zaloVersion = info.version
+        hasChecked = true
     }
 }
