@@ -4,7 +4,7 @@
     "release_date": "2026-05-27",
     "release_notes": "Hotfix bảo mật, cải thiện hiệu năng hệ thống.\n\n• Mã hóa AES-256-GCM cho toàn bộ dữ liệu nhạy cảm\n• Anti-tamper: phát hiện công cụ phân tích, chống injection\n• Tối ưu CPU 95% khi chạy nhiều tài khoản\n• Notification kqueue event-driven — 0% CPU khi idle\n• Thread-safe avatar cache (NSCache)\n• Cập nhật tự động trong app",
     "download_url": "https://truong.me/zalo-multi-mac/download/ZaloMulti-v2.0.zip",
-    "download_size": 0,
+    "download_size": 1048576,
     "min_os_version": "14.0",
     "mandatory": false
 }
