@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Xcode
+build/
+DerivedData/
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+
+# Build outputs
+*.app
+*.dmg
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Temporary files
+portfolio-temp/
+
+# Worker API (chứa config nhạy cảm)
+worker-api.js
+
+# Security tools (KHÔNG commit)
+generate_encrypted.swift
+*.enc
+
+# Gemini AI
+.gemini/
+*.xcuserstate
+release/*.dmg
