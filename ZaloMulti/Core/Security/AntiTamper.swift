@@ -6,6 +6,7 @@
 
 import Foundation
 import Darwin
+import AppKit
 
 /// Multi-layer protection chống reverse engineering
 enum AntiTamper {
