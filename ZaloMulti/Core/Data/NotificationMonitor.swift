@@ -14,6 +14,7 @@ import SwiftUI
 /// Monitor theo dõi macOS notifications từ Zalo clones
 @MainActor
 final class NotificationMonitor: ObservableObject {
+    static let shared = NotificationMonitor()
     @Published var notifications: [PrivateNotification] = []
     @Published var unreadCount: Int = 0
     

@@ -6,7 +6,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var cloneStore: CloneStore
+    @ObservedObject var cloneStore = CloneStore.shared
     @State private var showSidebar = true
     
     var body: some View {

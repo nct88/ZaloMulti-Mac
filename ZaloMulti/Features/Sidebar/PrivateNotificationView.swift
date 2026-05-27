@@ -8,7 +8,7 @@ import SwiftUI
 
 // MARK: - Notification List (Sidebar)
 struct PrivateNotificationListView: View {
-    @EnvironmentObject var monitor: NotificationMonitor
+    @ObservedObject var monitor = NotificationMonitor.shared
     
     var body: some View {
         VStack(spacing: 0) {
@@ -102,7 +102,7 @@ struct PrivateNotificationListView: View {
 // MARK: - Single Notification Row (tap to expand)
 struct NotificationRowView: View {
     let notification: PrivateNotification
-    @EnvironmentObject var monitor: NotificationMonitor
+    @ObservedObject var monitor = NotificationMonitor.shared
     @State private var isHovered = false
     @State private var isExpanded = false
     

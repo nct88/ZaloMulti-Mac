@@ -12,6 +12,7 @@ import SwiftUI
 
 @MainActor
 class CloneStore: ObservableObject {
+    static let shared = CloneStore()
     
     // MARK: - Published Properties
     @Published var clones: [CloneAccount] = []

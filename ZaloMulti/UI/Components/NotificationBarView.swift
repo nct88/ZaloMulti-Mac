@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct NotificationBarView: View {
-    @EnvironmentObject var store: CloneStore
+    @ObservedObject var store = CloneStore.shared
     @State private var zaloInstalled = false
     @State private var zaloVersion: String?
     

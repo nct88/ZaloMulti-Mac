@@ -6,8 +6,6 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var store: CloneStore
-    
     var body: some View {
         TabView {
             GeneralSettingsView()
