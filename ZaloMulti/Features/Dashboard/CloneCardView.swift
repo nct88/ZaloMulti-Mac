@@ -1,7 +1,8 @@
 // CloneCardView.swift
 // ZaloMulti
 //
-// Card hiển thị thông tin một clone account — với avatar + display_name
+// Card hiển thị thông tin một clone account — với avatar + display_name.
+// Rebuild v2.1 — @EnvironmentObject, proper state management.
 
 import SwiftUI
 
@@ -36,7 +37,7 @@ struct CloneCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header: Avatar + Info + Status
             HStack(spacing: 12) {
-                // Avatar — real image hoặc fallback gradient
+                // Avatar
                 ZStack(alignment: .bottomTrailing) {
                     if let avatar = avatarImage {
                         Image(nsImage: avatar)
@@ -59,7 +60,6 @@ struct CloneCardView: View {
                             )
                     }
                     
-                    // Status indicator
                     Circle()
                         .fill(statusColor)
                         .frame(width: 12, height: 12)
@@ -70,12 +70,10 @@ struct CloneCardView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    // Display name from Zalo profile or fallback to clone name
                     Text(displayName ?? clone.name)
                         .font(.system(size: 15, weight: .semibold))
                         .lineLimit(1)
                     
-                    // Phone number
                     HStack(spacing: 4) {
                         Image(systemName: "iphone")
                             .font(.caption2)
@@ -89,7 +87,7 @@ struct CloneCardView: View {
                 
                 Spacer()
                 
-                // Status badge with gradient
+                // Status badge
                 Text(clone.status.displayName)
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 10)
@@ -130,7 +128,7 @@ struct CloneCardView: View {
                 
                 Spacer()
                 
-                // Launch/Stop — trạng thái nút phản ánh đúng #7
+                // Launch/Stop
                 CardActionButton(
                     title: clone.status == .running ? "Dừng" : "Chạy",
                     icon: clone.status == .running ? "stop.fill" : "play.fill",
@@ -145,20 +143,12 @@ struct CloneCardView: View {
                 }
                 
                 // Edit
-                CardActionButton(
-                    title: nil,
-                    icon: "pencil",
-                    tint: .secondary
-                ) {
+                CardActionButton(title: nil, icon: "pencil", tint: .secondary) {
                     showEditSheet = true
                 }
                 
                 // Delete
-                CardActionButton(
-                    title: nil,
-                    icon: "trash",
-                    tint: .red
-                ) {
+                CardActionButton(title: nil, icon: "trash", tint: .red) {
                     showDeleteConfirm = true
                 }
             }
@@ -190,9 +180,7 @@ struct CloneCardView: View {
         .onHover { isHovered = $0 }
         .onAppear { loadAvatar() }
         .onChange(of: clone.status) { _, newStatus in
-            // Reload avatar khi trạng thái thay đổi
             if newStatus == .running {
-                // Reload sau vài giây khi Zalo đã chạy và tạo cache
                 DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
                     AvatarExtractor.clearCache(cloneIndex: clone.cloneIndex)
                     loadAvatar()
@@ -216,12 +204,9 @@ struct CloneCardView: View {
     }
     
     private func loadAvatar() {
-        // Sử dụng cache — chỉ clear khi clone status thay đổi (onChange ở trên)
         AvatarExtractor.loadProfile(cloneIndex: clone.cloneIndex) { profile, image in
             if let image = image {
-                withAnimation(.easeIn(duration: 0.3)) {
-                    avatarImage = image
-                }
+                withAnimation(.easeIn(duration: 0.3)) { avatarImage = image }
             } else {
                 avatarImage = nil
             }
@@ -234,8 +219,7 @@ struct CloneCardView: View {
     }
 }
 
-// MARK: - Card Action Button with Hover Lift Effect
-
+// MARK: - Card Action Button
 struct CardActionButton: View {
     var title: String?
     let icon: String

@@ -1,7 +1,8 @@
 // AddCloneView.swift
 // ZaloMulti
 //
-// Sheet thêm tài khoản clone mới — với progress bar inline
+// Sheet thêm tài khoản clone mới — với progress bar inline.
+// Rebuild v2.1 — @Environment(\.dismiss) + @EnvironmentObject.
 
 import SwiftUI
 
@@ -31,7 +32,6 @@ struct AddCloneView: View {
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Thông tin tài khoản
                     GroupBox("Thông tin tài khoản") {
                         VStack(alignment: .leading, spacing: 12) {
                             LabeledField("Tên hiển thị", text: $name,
@@ -39,7 +39,7 @@ struct AddCloneView: View {
                             LabeledField("Số điện thoại", text: $phoneNumber,
                                          placeholder: "0901234567")
                             
-                            // Progress bar ngay dưới SĐT (#3)
+                            // Progress bar
                             if isCreating {
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack(spacing: 8) {
@@ -84,7 +84,7 @@ struct AddCloneView: View {
             
             Divider()
             
-            // Footer — chỉ buttons
+            // Footer
             HStack {
                 Spacer()
                 Button("Huỷ") { dismiss() }
@@ -135,7 +135,6 @@ struct AddCloneView: View {
     }
     
     private func createClone() {
-        // Reset message TRƯỚC khi show progress UI → tránh hiện "Hoàn thành!" cũ
         store.engine.progressMessage = "Đang chuẩn bị..."
         withAnimation { isCreating = true }
         
@@ -153,7 +152,6 @@ struct AddCloneView: View {
                     isCreating = false
                     createComplete = true
                 }
-                // Auto close sau 1.5s
                 try? await Task.sleep(for: .seconds(1.5))
                 dismiss()
             } catch {

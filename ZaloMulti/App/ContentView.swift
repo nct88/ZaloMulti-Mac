@@ -2,6 +2,7 @@
 // ZaloMulti
 //
 // Layout tổng thể: Main Content (trái) + Sidebar (phải)
+// Rebuild v2.1 — @EnvironmentObject pattern.
 
 import SwiftUI
 
@@ -13,21 +14,16 @@ struct ContentView: View {
         HStack(spacing: 0) {
             // LEFT: Main Dashboard
             VStack(spacing: 0) {
-                // Notification Bar — Zalo source status
                 NotificationBarView()
-                
-                // Clone Grid
                 DashboardView()
             }
             .frame(maxWidth: .infinity)
             
             if showSidebar {
-                // Divider
                 Rectangle()
                     .fill(Color(nsColor: .separatorColor))
                     .frame(width: 1)
                 
-                // RIGHT: Sidebar
                 SidebarView()
                     .frame(width: 240)
                     .transition(.move(edge: .trailing))

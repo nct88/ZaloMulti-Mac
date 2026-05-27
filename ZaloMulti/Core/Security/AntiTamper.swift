@@ -2,7 +2,7 @@
 // ZaloMulti
 //
 // Chống debug, inject, tamper — multi-layer protection.
-// Chạy khi app khởi động và periodic check.
+// Rebuild v2.1 — safe init, không crash ad-hoc build, không terminate bất ngờ.
 
 import Foundation
 import Darwin
@@ -13,7 +13,6 @@ enum AntiTamper {
     
     // MARK: - Anti-Debugger
     
-    /// Phát hiện debugger bằng sysctl (P_TRACED flag)
     static var isDebuggerAttached: Bool {
         #if DEBUG
         return false
@@ -26,7 +25,6 @@ enum AntiTamper {
         #endif
     }
     
-    /// Chặn debugger attach — gọi 1 lần khi app khởi động
     static func denyDebuggerAttach() {
         #if !DEBUG
         let ptraceVal: CInt = 31 // PT_DENY_ATTACH
@@ -40,9 +38,8 @@ enum AntiTamper {
         #endif
     }
     
-    // MARK: - Code Integrity (CodeSignature Verification)
+    // MARK: - Code Integrity
     
-    /// Kiểm tra app có bị sửa đổi binary
     static var isCodeSignatureValid: Bool {
         #if DEBUG
         return true
@@ -59,7 +56,6 @@ enum AntiTamper {
     
     // MARK: - DYLD Injection Detection
     
-    /// Phát hiện thư viện bị inject (Frida, Cycript, Substrate...)
     static var hasInjectedLibraries: Bool {
         #if DEBUG
         return false
@@ -81,7 +77,6 @@ enum AntiTamper {
     
     // MARK: - Environment Variable Check
     
-    /// Kiểm tra biến môi trường injection
     static var hasSuspiciousEnvironment: Bool {
         #if DEBUG
         return false
@@ -95,39 +90,8 @@ enum AntiTamper {
         #endif
     }
     
-    // MARK: - Reverse Engineering Tool Detection
-    
-    /// Phát hiện công cụ phân tích đang chạy
-    static var hasAnalysisToolsRunning: Bool {
-        #if DEBUG
-        return false
-        #else
-        let tools = ["Hopper", "Ghidra", "IDA", "lldb", "dtrace",
-                     "frida-server", "Proxyman", "Charles"]
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/bin/ps")
-        proc.arguments = ["-ax", "-o", "comm"]
-        let pipe = Pipe()
-        proc.standardOutput = pipe
-        proc.standardError = FileHandle.nullDevice
-        
-        do {
-            try proc.run()
-            proc.waitUntilExit()
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            let output = String(data: data, encoding: .utf8)?.lowercased() ?? ""
-            for tool in tools {
-                if output.contains(tool.lowercased()) { return true }
-            }
-        } catch {}
-        
-        return false
-        #endif
-    }
-    
     // MARK: - Combined Security Check
     
-    /// Chạy tất cả kiểm tra — trả về true nếu an toàn
     static func performFullCheck() -> Bool {
         #if DEBUG
         return true
@@ -135,16 +99,16 @@ enum AntiTamper {
         if isDebuggerAttached { return false }
         if hasInjectedLibraries { return false }
         if hasSuspiciousEnvironment { return false }
-        if !isCodeSignatureValid { return false }
+        // Bỏ kiểm tra code signature trong periodic check
+        // để tránh terminate ad-hoc/dev builds
         return true
         #endif
     }
     
-    /// Khởi tạo bảo vệ khi app start — gọi từ App.init()
+    /// Khởi tạo bảo vệ — GỌI TỪ onAppear, KHÔNG từ init()
     static func initialize() {
         #if !DEBUG
-        // Chỉ bật anti-tamper khi app đã được code sign đúng cách
-        // Tránh crash khi chạy từ Xcode hoặc ad-hoc build
+        // Chỉ bật khi app đã code sign đúng cách
         guard isCodeSignatureValid else {
             DiagnosticLogger.warning("SECURITY", "App chưa được code sign — anti-tamper disabled")
             return
@@ -152,16 +116,17 @@ enum AntiTamper {
         
         denyDebuggerAttach()
         
-        // Periodic check mỗi 60 giây
+        // Periodic check mỗi 60 giây — CHỈ check injection, KHÔNG terminate ad-hoc
         DispatchQueue.global(qos: .utility).async {
-            Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-                if !performFullCheck() {
-                    // Phát hiện tampering — silent exit
+            let timer = Timer(timeInterval: 60, repeats: true) { _ in
+                if isDebuggerAttached || hasInjectedLibraries || hasSuspiciousEnvironment {
+                    DiagnosticLogger.error("SECURITY", "Phát hiện tampering!")
                     DispatchQueue.main.async {
                         NSApplication.shared.terminate(nil)
                     }
                 }
             }
+            RunLoop.current.add(timer, forMode: .default)
             RunLoop.current.run()
         }
         #endif

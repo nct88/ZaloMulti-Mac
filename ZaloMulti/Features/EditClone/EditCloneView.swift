@@ -1,7 +1,8 @@
 // EditCloneView.swift
 // ZaloMulti
 //
-// Sheet chỉnh sửa thông tin clone
+// Sheet chỉnh sửa thông tin clone.
+// Rebuild v2.1 — @Environment(\.dismiss) + @EnvironmentObject.
 
 import SwiftUI
 

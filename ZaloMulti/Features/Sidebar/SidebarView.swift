@@ -1,7 +1,8 @@
 // SidebarView.swift
 // ZaloMulti
 //
-// Sidebar bên phải — buttons, social links, stats
+// Sidebar bên phải — buttons, social links, stats.
+// Rebuild v2.1 — @EnvironmentObject pattern.
 
 import SwiftUI
 
@@ -10,12 +11,12 @@ struct SidebarView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 0. Thông báo riêng tư
+            // Thông báo riêng tư
             PrivateNotificationListView()
             
-            // 1. Đóng tất cả Clone
             Divider()
             
+            // Đóng tất cả Clone
             Button(action: { store.stopAllClones() }) {
                 Label("Đóng tất cả Clone", systemImage: "xmark.circle.fill")
                     .font(.system(size: 14, weight: .semibold))
@@ -30,13 +31,13 @@ struct SidebarView: View {
             
             Divider()
             
-            // 2. Footer Stats
+            // Footer Stats
             SidebarFooterView()
                 .padding()
             
             Divider()
             
-            // 3. Social Icons
+            // Social Icons
             SocialLinksView()
                 .padding(.vertical, 10)
         }
@@ -44,7 +45,7 @@ struct SidebarView: View {
     }
 }
 
-// MARK: - Social Links (URLs encrypted via SecureConfig)
+// MARK: - Social Links
 struct SocialLinksView: View {
     private struct SocialItem {
         let name: String
@@ -106,7 +107,7 @@ struct SidebarFooterView: View {
                 Circle()
                     .fill(Color.green)
                     .frame(width: 6, height: 6)
-                Text("Phiên bản v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0")")
+                Text("Phiên bản v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1")")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)

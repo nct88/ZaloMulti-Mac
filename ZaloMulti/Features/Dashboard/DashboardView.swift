@@ -1,7 +1,8 @@
 // DashboardView.swift
 // ZaloMulti
 //
-// Grid 2 cột hiển thị các clone cards
+// Grid 2 cột hiển thị các clone cards + nút thêm tài khoản.
+// Rebuild v2.1 — @EnvironmentObject + Button thay vì onTapGesture.
 
 import SwiftUI
 
@@ -40,7 +41,7 @@ struct DashboardView: View {
                     CloneCardView(clone: clone)
                 }
                 
-                // Nút thêm clone mới — dùng Button thay vì onTapGesture
+                // Nút thêm clone — Button rõ ràng, không dùng onTapGesture
                 AddCloneCardView {
                     store.showAddCloneSheet = true
                 }
@@ -56,7 +57,7 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Add Clone Card
+// MARK: - Add Clone Card (Nút "Thêm tài khoản")
 struct AddCloneCardView: View {
     @State private var isHovered = false
     var action: () -> Void
@@ -106,4 +107,3 @@ struct AddCloneCardView: View {
         }
     }
 }
-

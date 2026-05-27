@@ -2,45 +2,47 @@
 // ZaloMulti
 //
 // Entry point (@main) — khởi tạo app với CloneStore và window config.
-// Auto-update kiểu Telegram: nhấn "Cập nhật" → tải + cài + khởi động lại.
+// Rebuild v2.1 — @StateObject + .environmentObject() theo zDesk-Pro.
 
 import SwiftUI
 
 @main
 struct ZaloMultiApp: App {
+    @StateObject private var cloneStore = CloneStore()
     @State private var showUpdateSheet = false
-    private let cloneStore = CloneStore.shared
     
     init() {
-        // Security initialization
-        AntiTamper.initialize()
-        
-        // Logger init
+        // Logger init (lazy — không phụ thuộc SecureConfig)
         DiagnosticLogger.info("APP", "ZaloMulti — khởi động")
         DiagnosticLogger.info("APP", "Log file: \(DiagnosticLogger.logFilePath)")
         
-        // Pre-init singletons
-        _ = NotificationMonitor.shared
-        
+        // Detect Zalo source
         let zaloInfo = ZaloCloneEngine().detectSourceZalo()
         DiagnosticLogger.info("APP", "Zalo Desktop: installed=\(zaloInfo.installed), version=\(zaloInfo.version ?? "N/A")")
     }
+    
     var body: some Scene {
         WindowGroup("Zalỏ - macOS") {
             ContentView()
                 .environmentObject(cloneStore)
                 .frame(minWidth: 860, minHeight: 560)
                 .onAppear {
-                    // Migration: cleanup dữ liệu cũ
+                    // Anti-tamper — gọi ở onAppear, KHÔNG ở init()
+                    AntiTamper.initialize()
+                    
+                    // Migration
                     MigrationManager.shared.runMigrations()
                     MigrationManager.shared.cleanupOldVersionData()
                     
-                    // Kiểm tra trạng thái hỗ trợ (delay để SwiftUI window sẵn sàng)
+                    // Notification monitor
+                    _ = NotificationMonitor.shared
+                    
+                    // Donate check (delay)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         DonateManager.checkAndPromptDonate()
                     }
                     
-                    // Kiểm tra cập nhật ngầm (delay)
+                    // Auto-update check (delay)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         if SettingsManager.shared.settings.checkUpdateOnStartup {
                             InAppUpdater.shared.checkForUpdates()
@@ -61,7 +63,7 @@ struct ZaloMultiApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Thêm Clone Mới") {
-                    CloneStore.shared.showAddCloneSheet = true
+                    cloneStore.showAddCloneSheet = true
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
@@ -73,7 +75,7 @@ struct ZaloMultiApp: App {
             }
             CommandMenu("Clone") {
                 Button("Dừng tất cả") {
-                    CloneStore.shared.stopAllClones()
+                    cloneStore.stopAllClones()
                 }
                 .keyboardShortcut("q", modifiers: [.command, .shift])
             }
