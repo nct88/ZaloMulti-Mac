@@ -49,9 +49,15 @@ final class InAppUpdater: ObservableObject {
         
         Task {
             do {
-                // API endpoint từ SecureConfig (encrypted)
-                let apiURL = SecureConfig.githubAPIURL
-                guard let url = URL(string: apiURL), !apiURL.isEmpty else {
+                // API endpoint từ SecureConfig (encrypted), fallback nếu decrypt thất bại
+                var apiURL = SecureConfig.githubAPIURL
+                if apiURL.isEmpty {
+                    // Fallback: decrypt thất bại (thường do Bundle ID debug khác production)
+                    apiURL = "https://api.github.com/repos/nct88/ZaloMulti-macOS/releases/latest"
+                    DiagnosticLogger.warning("UPDATE", "SecureConfig decrypt failed → dùng fallback URL")
+                }
+                DiagnosticLogger.info("UPDATE", "Check URL: \(apiURL)")
+                guard let url = URL(string: apiURL) else {
                     if showUpToDatePrompt { state = .failed(message: "Không thể kết nối máy chủ") }
                     else { state = .idle }
                     return
