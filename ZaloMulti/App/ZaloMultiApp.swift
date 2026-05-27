@@ -47,10 +47,6 @@ struct ZaloMultiApp: App {
                         }
                     }
                 }
-                .sheet(isPresented: $updater.showUpdateSheet) {
-                    UpdateProgressView(updater: InAppUpdater.shared)
-                        .frame(minWidth: 420, minHeight: 300)
-                }
         }
         .windowToolbarStyle(.unified(showsTitle: true))
         .defaultSize(width: 1060, height: 680)
