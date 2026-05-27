@@ -8,6 +8,7 @@ import SwiftUI
 
 @main
 struct ZaloMultiApp: App {
+    @ObservedObject private var updater = InAppUpdater.shared
     @State private var showUpdateSheet = false
     
     init() {
@@ -42,17 +43,24 @@ struct ZaloMultiApp: App {
                     // Kiểm tra cập nhật ngầm (delay)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         if SettingsManager.shared.settings.checkUpdateOnStartup {
+                            DiagnosticLogger.info("APP", "Bắt đầu kiểm tra cập nhật...")
                             InAppUpdater.shared.checkForUpdates()
                         }
                     }
                 }
-                .onReceive(InAppUpdater.shared.$state) { newState in
-                    if case .available = newState {
-                        showUpdateSheet = true
+                .onChange(of: updater.state) { oldState, newState in
+                    DiagnosticLogger.info("APP", "Update state: \(oldState.displayText) → \(newState.displayText)")
+                    if case .available(let version, _) = newState {
+                        DiagnosticLogger.info("APP", "Hiện sheet cập nhật v\(version)")
+                        // Delay nhỏ để tránh conflict với sheet khác
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            showUpdateSheet = true
+                        }
                     }
                 }
                 .sheet(isPresented: $showUpdateSheet) {
                     UpdateProgressView(updater: InAppUpdater.shared)
+                        .frame(minWidth: 420, minHeight: 300)
                 }
         }
         .windowToolbarStyle(.unified(showsTitle: true))
@@ -67,7 +75,9 @@ struct ZaloMultiApp: App {
             CommandGroup(after: .appInfo) {
                 Button("Kiểm tra cập nhật...") {
                     InAppUpdater.shared.checkForUpdates(showUpToDatePrompt: true)
-                    showUpdateSheet = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showUpdateSheet = true
+                    }
                 }
             }
             CommandMenu("Clone") {
