@@ -84,6 +84,8 @@ struct SocialLinksView: View {
                             Image(item.imageName)
                                 .renderingMode(.original)
                                 .resizable()
+                                .interpolation(.high)
+                                .antialiased(true)
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 28, height: 28)
                                 .clipShape(RoundedRectangle(cornerRadius: 7))
